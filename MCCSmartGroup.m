@@ -8,6 +8,8 @@
 
 #import "MCCSmartGroup.h"
 
+//#define DEBUG_MCCSmartGroup
+
 @interface MCCSmartGroup ()
 @property (assign, nonatomic) BOOL cached;
 
@@ -26,12 +28,13 @@
 @end
 
 @implementation MCCSmartGroup
-@synthesize viewBlock, dataBlock, onUpdate, title;
+@synthesize viewBlock, dataBlock, onUpdate, title, onUpdated, tag;
 @synthesize data, cached, count, reloadIndexes, removeIndexes, insertIndexes, visibleIndexes, pendingCount, pendingData, pendingVisibleIndexes, shouldHideWhenEmpty;
 
 - (id)init {
   self = [super init];
   if (!self) return nil;
+  tag = 0;
   return self;
 }
 
@@ -42,6 +45,7 @@
   self.viewBlock = nil;
   self.dataBlock = nil;
   self.onUpdate = nil;
+  self.onUpdated = nil;
   
   self.reloadIndexes = nil;
   self.removeIndexes = nil;
@@ -53,11 +57,25 @@
   [super dealloc];
 }
 
-- (void)processUpdates {
+- (void)reload {
   cached = FALSE;
   [self cacheData];
-  
+}
+
+- (void)update {
   onUpdate(self.pendingData ? pendingCount : count, reloadIndexes, removeIndexes, insertIndexes);
+}
+
+- (void)processUpdates {
+  [self reload];
+  
+#ifdef DEBUG_MCCSmartGroup
+  NSLog(@"reloads: %@", reloadIndexes);
+  NSLog(@"removes: %@", removeIndexes);
+  NSLog(@"inserts: %@", insertIndexes);
+#endif
+  
+  [self update];
 }
 
 - (void)cacheData {
@@ -108,6 +126,7 @@
   self.pendingCount = 0;
   self.pendingData = nil;
   self.pendingVisibleIndexes = nil;
+  if (onUpdated) onUpdated();
 }
 
 - (NSUInteger)countForData:(id)aData {
@@ -124,9 +143,11 @@
 
 - (NSArray *)visibleIndexesForDictionaryData:(NSDictionary *)aData {
   return [[aData allKeys]sortedArrayUsingComparator:^NSComparisonResult(id obj1, id obj2) {
-    return [(NSNumber *)obj1 integerValue] > [(NSNumber *)obj2 integerValue] ? NSOrderedDescending : NSOrderedAscending;
+    return [obj1 integerValue] > [obj2 integerValue] ? NSOrderedDescending : NSOrderedAscending;
   }];
 }
+
+- (NSArray *)visibleIndexes { return visibleIndexes; }
 
 #pragma mark Diff
 
@@ -142,8 +163,9 @@
     *removes = [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, _count)];
     return _count;
   }
-  
-  NSAssert([oldData class] == [newData class], @"mutating data type is not allowed");
+
+  NSAssert(([oldData isKindOfClass:[NSArray class]] && [newData isKindOfClass:[NSArray class]])
+        || ([oldData isKindOfClass:[NSDictionary class]] && [newData isKindOfClass:[NSDictionary class]]) , @"mutating data type is not allowed");
   
   NSInteger _count = [self countForData:newData];
   
@@ -179,7 +201,6 @@
     [addedSet enumerateObjectsUsingBlock:^(NSNumber *index, BOOL *stop){
       [toInsert addIndex:[index integerValue]];
     }];
-    
     
     *reloads = [toReload autorelease];
     *removes = [toRemove autorelease];
@@ -220,6 +241,9 @@
 
 - (id)dataForRowAtIndex:(NSInteger)rowIndex {
   if ([data isKindOfClass:[NSDictionary class]]) {
+    if ([[((NSDictionary*)data).allKeys objectAtIndex:0]isKindOfClass:[NSString class]]) {
+      return [data objectForKey:[[NSNumber numberWithInt:rowIndex]stringValue]];
+    }
     return [data objectForKey:[NSNumber numberWithInt:rowIndex]];
   }
   

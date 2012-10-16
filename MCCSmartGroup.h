@@ -65,15 +65,22 @@
                                                    If you wish to show an empty row, return [NSNull null] and check for it in the viewBlock */
 @property (copy, nonatomic) void(^onUpdate)(NSInteger count, NSIndexSet* reloads, NSIndexSet* removes, NSIndexSet* inserts); /* called when an update has been triggered. If you add the group to manager (MCCSmartGroupManager*) with the method - (void)addSmartGroup:(MCCSmartGroup*)smartGroup inTableView:(UITableView *)aTableView; it will automatically create the onUpdate callback to update the tableView with the changes */
 
+
 #pragma mark optional settings
+@property (assign, nonatomic) NSUInteger tag; /* a tag to identify the smartGroup */
 @property (retain, nonatomic) NSString *title; /* name of the section, used in the context of a UITableView */
 @property (assign, nonatomic) BOOL shouldHideWhenEmpty; /* used by the SmartGroup manager to determine if it should show an empty group or hide it in the context of a UITableView */
+@property (copy, nonatomic) void(^onUpdated)(void); /* When the smartgroup updates are committed */
 
 #pragma mark query the smartGroup
 - (NSInteger)numberOfRows;
 - (id)viewForRowAtIndex:(NSInteger)rowIndex;
+- (NSArray *)visibleIndexes; /* For Indexed data (NSDictionary), return the indexes of visible data */
 
 #pragma mark smartGroup updating
 - (void)processUpdates; /* reprocesses the data returned by the dataBlock and sets pending updates. A commit is needed in order to set the pending updates effective */
 - (void)commitUpdates; /* commit the pending updates */
+
+- (void)reload;
+- (void)update;
 @end

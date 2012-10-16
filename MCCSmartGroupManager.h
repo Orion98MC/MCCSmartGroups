@@ -1,6 +1,5 @@
 //
-//  MCCSmartGroupDelegate.h
-//  MCCSmartGroupDemo
+//  MCCSmartGroupManager.h
 //
 //  Created by Thierry Passeron on 14/09/12.
 //  Copyright (c) 2012 Monte-Carlo Computing. All rights reserved.
@@ -11,6 +10,13 @@
 
 @interface MCCSmartGroupManager : NSObject
 
+- (NSArray *)smartGroups;
+- (MCCSmartGroup *)smartGroupWithTag:(NSUInteger)tag;
+- (NSInteger)indexOfSmartGroup:(MCCSmartGroup *)smartGroup;
+
+- (NSArray *)effectiveSmartGroups;
+- (BOOL)isEffectiveSmartGroup:(MCCSmartGroup *)smartGroup;
+- (NSInteger)effectiveIndexOfSmartGroup:(MCCSmartGroup *)smartGroup;
 - (NSUInteger)effectiveSmartGroupsCount;
 - (MCCSmartGroup *)smartGroupAtEffectiveIndex:(NSUInteger)index;
 

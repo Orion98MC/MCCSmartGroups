@@ -1,6 +1,5 @@
 //
-//  MCCSmartGroupDelegate.m
-//  MCCSmartGroupDemo
+//  MCCSmartGroupManager.h
 //
 //  Created by Thierry Passeron on 14/09/12.
 //  Copyright (c) 2012 Monte-Carlo Computing. All rights reserved.
@@ -43,6 +42,31 @@ NS_INLINE NSArray *indexPathsForSectionWithIndexSet(NSInteger section, NSIndexSe
 
 #pragma mark query and manage SmartGroups
 
+- (NSArray *)smartGroups { return [[smartGroups copy]autorelease]; }
+
+- (MCCSmartGroup *)smartGroupWithTag:(NSUInteger)tag {
+  __block MCCSmartGroup *smartGroup = nil;
+  [smartGroups enumerateObjectsUsingBlock:^(MCCSmartGroup *s, NSUInteger idx, BOOL *stop) {
+    if (s.tag == tag) {
+      smartGroup = s;
+      *stop = TRUE;
+    }
+  }];
+  return smartGroup;
+}
+
+- (BOOL)isEffectiveSmartGroup:(MCCSmartGroup *)smartGroup {
+  return [self effectiveIndexOfSmartGroup:smartGroup] != NSNotFound;
+}
+
+- (NSInteger)indexOfSmartGroup:(MCCSmartGroup *)smartGroup {
+  return [smartGroups indexOfObject:smartGroup];
+}
+
+- (NSArray *)effectiveSmartGroups {
+  return effectiveSmartGroups;
+}
+
 - (NSUInteger)effectiveSmartGroupsCount {
   return effectiveSmartGroups.count;
 }
@@ -78,7 +102,6 @@ NS_INLINE NSArray *indexPathsForSectionWithIndexSet(NSInteger section, NSIndexSe
   [self addSmartGroup:smartGroup];
   smartGroup.onUpdate = [self buildUITableViewUpdateBlockForTableView:aTableView smartGroup:smartGroup];
 }
-
 
 - (void)reload {
   if (!dirty) return;
@@ -134,44 +157,45 @@ NS_INLINE NSArray *indexPathsForSectionWithIndexSet(NSInteger section, NSIndexSe
     NSInteger insertIndex = [self effectiveIndexForInsertableSmartGroup:smartGroup];
     [effectiveSmartGroups insertObject:smartGroup atIndex:insertIndex];
     [smartGroup commitUpdates];
-    [tableView insertSections:[NSIndexSet indexSetWithIndex:insertIndex] withRowAnimation:UITableViewRowAnimationTop];
+    [tableView insertSections:[NSIndexSet indexSetWithIndex:insertIndex] withRowAnimation:UITableViewRowAnimationNone];
   });
   
   return 0;
 }
 
 - (void(^)(NSInteger count, NSIndexSet* reloads, NSIndexSet* removes, NSIndexSet* inserts))buildUITableViewUpdateBlockForTableView:(UITableView *)tableView smartGroup:(MCCSmartGroup*)smartGroup {
+  __block typeof(tableView) __tableView = tableView;
+  __block typeof(smartGroup) __smartGroup = smartGroup;
+  __block typeof(self) __self = self;
+  
   return [[^void(NSInteger count, NSIndexSet* reloads, NSIndexSet* removes, NSIndexSet* inserts) {
-    if (count == 0 && smartGroup.shouldHideWhenEmpty) {
-      if ([effectiveSmartGroups indexOfObject:smartGroup] != NSNotFound) [self hideSmartGroup:smartGroup inTableView:tableView];
+    if (count == 0 && __smartGroup.shouldHideWhenEmpty) {
+      if ([__self.effectiveSmartGroups indexOfObject:__smartGroup] != NSNotFound) [__self hideSmartGroup:__smartGroup inTableView:__tableView];
       return;
     }
     
-    if ([effectiveSmartGroups indexOfObject:smartGroup] == NSNotFound) {
-      [self showSmartGroup:smartGroup inTableView:tableView];
+    if ([__self.effectiveSmartGroups indexOfObject:__smartGroup] == NSNotFound) {
+      [__self showSmartGroup:__smartGroup inTableView:__tableView];
       return;
     }
           
     dispatch_async(dispatch_get_main_queue(), ^{
-      NSInteger section = [self effectiveIndexOfSmartGroup:smartGroup];
-      [smartGroup commitUpdates];
-
-      [tableView beginUpdates];
-      
+      NSInteger section = [__self effectiveIndexOfSmartGroup:__smartGroup];
+      [__smartGroup commitUpdates];
+      [__tableView beginUpdates];
       if (reloads && reloads.count) {
-        [tableView reloadRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, reloads)
-                         withRowAnimation:UITableViewRowAnimationFade];
+        [__tableView reloadRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, reloads)
+                         withRowAnimation:UITableViewRowAnimationNone];
       }
       if (removes && removes.count) {
-        [tableView deleteRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, removes)
+        [__tableView deleteRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, removes)
                          withRowAnimation:UITableViewRowAnimationTop];
       }
       if (inserts && inserts.count) {
-        [tableView insertRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, inserts)
-                         withRowAnimation:UITableViewRowAnimationTop];
+        [__tableView insertRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, inserts)
+                         withRowAnimation:UITableViewRowAnimationNone];
       }
-      
-      [tableView endUpdates];
+      [__tableView endUpdates];
     });
   } copy]autorelease];
 }
