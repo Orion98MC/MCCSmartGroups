@@ -29,7 +29,7 @@
 
 @implementation MCCSmartGroup
 @synthesize viewBlock, dataBlock, onUpdate, title, onUpdated, tag;
-@synthesize data, cached, count, reloadIndexes, removeIndexes, insertIndexes, visibleIndexes, pendingCount, pendingData, pendingVisibleIndexes, shouldHideWhenEmpty;
+@synthesize data, cached, count, reloadIndexes, removeIndexes, insertIndexes, visibleIndexes, pendingCount, pendingData, pendingVisibleIndexes, shouldHideWhenEmpty, editable, movable, onCommitEditingStyle, onMoveRowAtIndexPath;
 
 - (id)init {
   self = [super init];
@@ -46,6 +46,8 @@
   self.dataBlock = nil;
   self.onUpdate = nil;
   self.onUpdated = nil;
+  self.onCommitEditingStyle = nil;
+  self.onMoveRowAtIndexPath = nil;
   
   self.reloadIndexes = nil;
   self.removeIndexes = nil;
@@ -79,11 +81,20 @@
 }
 
 - (void)cacheData {
+#ifdef DEBUG_MCCSmartGroup
+  NSLog(@"Cache data");
+#endif
   NSAssert(dataBlock, @"no data block");
   if (cached) return;
   
   id oldData = [[data copy]autorelease];
-  id newData = [[dataBlock() copy]autorelease];
+  
+  __block id newData = nil;
+  if ([NSThread isMainThread]) {
+    newData = [[dataBlock() copy]autorelease];
+  } else dispatch_sync(dispatch_get_main_queue(), ^{
+    newData = [[dataBlock() copy]autorelease];
+  });
   
   NSAssert(newData, @"dataBlock must return an object. Empty or not.");
   
@@ -96,12 +107,18 @@
   
   NSInteger _count = [self diffFromData:oldData toData:newData reloads:&reloads removes:&removes inserts:&inserts];
   if (!data) { // t0 (the first time the smartGroup is queried)
+#ifdef DEBUG_MCCSmartGroup
+    NSLog(@"First time data cache");
+#endif
     self.count = _count;
     self.data = newData;
     if ([data isKindOfClass:[NSDictionary class]]) {
       self.visibleIndexes = [self visibleIndexesForDictionaryData:newData];
     } else self.visibleIndexes = nil;
   } else { // An update
+#ifdef DEBUG_MCCSmartGroup
+    NSLog(@"Update data cache");
+#endif
     self.pendingCount = _count;
     self.pendingData = newData;
     if ([data isKindOfClass:[NSDictionary class]]) {
@@ -213,19 +230,50 @@
   
   NSSet *previousSet = [NSSet setWithArray:oldData];
   NSSet *newSet = [NSSet setWithArray:newData];
+  
+#ifdef DEBUG_MCCSmartGroup
+  NSLog(@"Data count %d -> %d", previousSet.count, newSet.count);
+#endif
 
   NSMutableSet *addedSet = [[newSet mutableCopy]autorelease];
   [addedSet minusSet:previousSet];
   NSMutableSet *removedSet = [[previousSet mutableCopy]autorelease];
   [removedSet minusSet:newSet];
-      
+
+#ifdef DEBUG_MCCSmartGroup
+  NSLog(@"Removed count %d", removedSet.count);
+#endif
+
   [removedSet enumerateObjectsUsingBlock:^(id object, BOOL *stop){
     [toRemove addIndex:[oldData indexOfObject:object]];
   }];
-  
+
+#ifdef DEBUG_MCCSmartGroup
+  NSLog(@"Added count %d", addedSet.count);
+#endif
+
   [addedSet enumerateObjectsUsingBlock:^(id object, BOOL *stop){
     [toInsert addIndex:[newData indexOfObject:object]];
   }];
+  
+  NSMutableSet *remainingSet = [[newSet mutableCopy]autorelease];
+  [remainingSet intersectSet:previousSet];
+  
+#ifdef DEBUG_MCCSmartGroup
+  NSLog(@"Remaining count %d", remainingSet.count);
+#endif
+  
+  [remainingSet enumerateObjectsUsingBlock:^(id obj, BOOL *stop){
+    NSUInteger newIndex = [newData indexOfObject:obj];
+    NSUInteger oldIndex = [oldData indexOfObject:obj];
+    if (oldIndex != newIndex) {
+#ifdef DEBUG_MCCSmartGroup
+      NSLog(@"Reload data at index %d -> %d", oldIndex, newIndex);
+#endif
+      [toReload addIndex:oldIndex];
+    }
+  }];
+  
   
   *reloads = [toReload autorelease];
   *removes = [toRemove autorelease];

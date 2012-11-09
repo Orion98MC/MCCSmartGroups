@@ -19,6 +19,7 @@ NS_INLINE NSArray *indexPathsForSectionWithIndexSet(NSInteger section, NSIndexSe
 @property (assign, nonatomic) BOOL dirty;
 @property (retain, nonatomic) NSMutableArray *smartGroups;
 @property (retain, nonatomic) NSMutableArray *effectiveSmartGroups;
+
 @end
 
 @implementation MCCSmartGroupManager
@@ -108,13 +109,20 @@ NS_INLINE NSArray *indexPathsForSectionWithIndexSet(NSInteger section, NSIndexSe
   [effectiveSmartGroups removeAllObjects];
   
   for (MCCSmartGroup *smartGroup in smartGroups) {
-    if ([smartGroup numberOfRows] == 0) continue;
+    if (([smartGroup numberOfRows] == 0) && smartGroup.shouldHideWhenEmpty) continue;
     [effectiveSmartGroups addObject:smartGroup];
   }
   
   dirty = FALSE;
 }
 
+- (void)updateSmartGroup:(MCCSmartGroup*)smartGroup {
+  if (![NSThread isMainThread]) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [smartGroup processUpdates];
+    });
+  } else [smartGroup processUpdates];
+}
 
 
 #pragma mark UITableViewDataSource methods
@@ -139,28 +147,43 @@ NS_INLINE NSArray *indexPathsForSectionWithIndexSet(NSInteger section, NSIndexSe
   return smartGroup.title;
 }
 
+- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath {
+  MCCSmartGroup *smartGroup = [self smartGroupAtEffectiveIndex:indexPath.section];
+  return smartGroup.editable;
+}
+
+- (BOOL)tableView:(UITableView *)tableView canMoveRowAtIndexPath:(NSIndexPath *)indexPath {
+  MCCSmartGroup *smartGroup = [self smartGroupAtEffectiveIndex:indexPath.section];
+  return smartGroup.movable;
+}
+
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
+  MCCSmartGroup *smartGroup = [self smartGroupAtEffectiveIndex:indexPath.section];
+  smartGroup.onCommitEditingStyle(editingStyle, indexPath);
+  [self updateSmartGroup:smartGroup];
+}
+
+- (void)tableView:(UITableView *)tableView moveRowAtIndexPath:(NSIndexPath *)fromIndexPath toIndexPath:(NSIndexPath *)toIndexPath {
+  MCCSmartGroup *smartGroup = [self smartGroupAtEffectiveIndex:fromIndexPath.section];
+  smartGroup.onMoveRowAtIndexPath(fromIndexPath, toIndexPath);
+}
+
 
 
 #pragma mark tool method
 
 - (void)hideSmartGroup:(MCCSmartGroup *)smartGroup inTableView:(UITableView *)tableView {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    NSInteger effectiveIndex = [self effectiveIndexOfSmartGroup:smartGroup];
-    [effectiveSmartGroups removeObject:smartGroup];
-    [smartGroup commitUpdates];
-    [tableView deleteSections:[NSIndexSet indexSetWithIndex:effectiveIndex] withRowAnimation:UITableViewRowAnimationTop];
-  });
+  NSInteger effectiveIndex = [self effectiveIndexOfSmartGroup:smartGroup];
+  [effectiveSmartGroups removeObject:smartGroup];
+  [smartGroup commitUpdates];
+  [tableView deleteSections:[NSIndexSet indexSetWithIndex:effectiveIndex] withRowAnimation:UITableViewRowAnimationTop];
 }
 
-- (NSInteger)showSmartGroup:(MCCSmartGroup *)smartGroup inTableView:(UITableView *)tableView {
-  dispatch_async(dispatch_get_main_queue(), ^{
-    NSInteger insertIndex = [self effectiveIndexForInsertableSmartGroup:smartGroup];
-    [effectiveSmartGroups insertObject:smartGroup atIndex:insertIndex];
-    [smartGroup commitUpdates];
-    [tableView insertSections:[NSIndexSet indexSetWithIndex:insertIndex] withRowAnimation:UITableViewRowAnimationNone];
-  });
-  
-  return 0;
+- (void)showSmartGroup:(MCCSmartGroup *)smartGroup inTableView:(UITableView *)tableView {
+  NSInteger insertIndex = [self effectiveIndexForInsertableSmartGroup:smartGroup];
+  [effectiveSmartGroups insertObject:smartGroup atIndex:insertIndex];
+  [smartGroup commitUpdates];
+  [tableView insertSections:[NSIndexSet indexSetWithIndex:insertIndex] withRowAnimation:UITableViewRowAnimationNone];
 }
 
 - (void(^)(NSInteger count, NSIndexSet* reloads, NSIndexSet* removes, NSIndexSet* inserts))buildUITableViewUpdateBlockForTableView:(UITableView *)tableView smartGroup:(MCCSmartGroup*)smartGroup {
@@ -169,7 +192,7 @@ NS_INLINE NSArray *indexPathsForSectionWithIndexSet(NSInteger section, NSIndexSe
   __block typeof(self) __self = self;
   
   return [[^void(NSInteger count, NSIndexSet* reloads, NSIndexSet* removes, NSIndexSet* inserts) {
-    if (count == 0 && __smartGroup.shouldHideWhenEmpty) {
+    if ((count == 0) && __smartGroup.shouldHideWhenEmpty) {
       if ([__self.effectiveSmartGroups indexOfObject:__smartGroup] != NSNotFound) [__self hideSmartGroup:__smartGroup inTableView:__tableView];
       return;
     }
@@ -179,24 +202,23 @@ NS_INLINE NSArray *indexPathsForSectionWithIndexSet(NSInteger section, NSIndexSe
       return;
     }
           
-    dispatch_async(dispatch_get_main_queue(), ^{
-      NSInteger section = [__self effectiveIndexOfSmartGroup:__smartGroup];
-      [__smartGroup commitUpdates];
-      [__tableView beginUpdates];
-      if (reloads && reloads.count) {
-        [__tableView reloadRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, reloads)
-                         withRowAnimation:UITableViewRowAnimationNone];
-      }
-      if (removes && removes.count) {
-        [__tableView deleteRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, removes)
-                         withRowAnimation:UITableViewRowAnimationTop];
-      }
-      if (inserts && inserts.count) {
-        [__tableView insertRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, inserts)
-                         withRowAnimation:UITableViewRowAnimationNone];
-      }
-      [__tableView endUpdates];
-    });
+
+    NSInteger section = [__self effectiveIndexOfSmartGroup:__smartGroup];
+    [__smartGroup commitUpdates];
+    [__tableView beginUpdates];
+    if (reloads && reloads.count) {
+      [__tableView reloadRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, reloads)
+                       withRowAnimation:UITableViewRowAnimationNone];
+    }
+    if (removes && removes.count) {
+      [__tableView deleteRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, removes)
+                       withRowAnimation:UITableViewRowAnimationTop];
+    }
+    if (inserts && inserts.count) {
+      [__tableView insertRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, inserts)
+                       withRowAnimation:UITableViewRowAnimationNone];
+    }
+    [__tableView endUpdates];
   } copy]autorelease];
 }
 

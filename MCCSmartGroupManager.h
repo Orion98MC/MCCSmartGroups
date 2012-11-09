@@ -24,6 +24,8 @@
 
 - (void)reload; /* force a reload of smartGroups. Note: no need to do it when attached to a tableView. */
 
+- (void)updateSmartGroup:(MCCSmartGroup*)smartGroup;
+
 @end
 
 @interface MCCSmartGroupManager (UITableView) <UITableViewDataSource>

@@ -72,6 +72,11 @@
 @property (assign, nonatomic) BOOL shouldHideWhenEmpty; /* used by the SmartGroup manager to determine if it should show an empty group or hide it in the context of a UITableView */
 @property (copy, nonatomic) void(^onUpdated)(void); /* When the smartgroup updates are committed */
 
+@property (assign, nonatomic) BOOL editable; /* in a tableView context whether the smartgroup can be editted */
+@property (assign, nonatomic) BOOL movable; /* in a tableView context whether the smartgroup can be moved */
+@property (copy, nonatomic) void(^onCommitEditingStyle)(UITableViewCellEditingStyle style, NSIndexPath *indexPath);
+@property (copy, nonatomic) void(^onMoveRowAtIndexPath)(NSIndexPath *from, NSIndexPath *to);
+
 #pragma mark query the smartGroup
 - (NSInteger)numberOfRows;
 - (id)viewForRowAtIndex:(NSInteger)rowIndex;
