@@ -67,6 +67,11 @@
 
 
 #pragma mark optional settings
+@property (assign, nonatomic) BOOL debug;
+@property (assign, nonatomic) UITableViewRowAnimation insertAnimation;
+@property (assign, nonatomic) UITableViewRowAnimation deleteAnimation;
+@property (assign, nonatomic) UITableViewRowAnimation reloadAnimation;
+
 @property (assign, nonatomic) NSUInteger tag; /* a tag to identify the smartGroup */
 @property (retain, nonatomic) NSString *title; /* name of the section, used in the context of a UITableView */
 @property (assign, nonatomic) BOOL shouldHideWhenEmpty; /* used by the SmartGroup manager to determine if it should show an empty group or hide it in the context of a UITableView */
@@ -76,6 +81,8 @@
 @property (assign, nonatomic) BOOL movable; /* in a tableView context whether the smartgroup can be moved */
 @property (copy, nonatomic) void(^onCommitEditingStyle)(UITableViewCellEditingStyle style, NSIndexPath *indexPath);
 @property (copy, nonatomic) void(^onMoveRowAtIndexPath)(NSIndexPath *from, NSIndexPath *to);
+
+@property (retain, nonatomic) NSMutableDictionary *userInfo; // Use it to store delegate values (ex: rowHeight, etc...)
 
 #pragma mark query the smartGroup
 - (NSInteger)numberOfRows;

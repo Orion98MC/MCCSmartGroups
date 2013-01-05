@@ -117,6 +117,9 @@ NS_INLINE NSArray *indexPathsForSectionWithIndexSet(NSInteger section, NSIndexSe
 }
 
 - (void)updateSmartGroup:(MCCSmartGroup*)smartGroup {
+#ifdef DEBUG_MCCSmartGroupManager
+  NSLog(@"Update smartgroup %@", smartGroup);
+#endif
   if (![NSThread isMainThread]) {
     dispatch_async(dispatch_get_main_queue(), ^{
       [smartGroup processUpdates];

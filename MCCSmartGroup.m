@@ -28,13 +28,14 @@
 @end
 
 @implementation MCCSmartGroup
-@synthesize viewBlock, dataBlock, onUpdate, title, onUpdated, tag;
-@synthesize data, cached, count, reloadIndexes, removeIndexes, insertIndexes, visibleIndexes, pendingCount, pendingData, pendingVisibleIndexes, shouldHideWhenEmpty, editable, movable, onCommitEditingStyle, onMoveRowAtIndexPath;
+@synthesize viewBlock, dataBlock, onUpdate, title, onUpdated, tag, userInfo;
+@synthesize data, cached, count, reloadIndexes, removeIndexes, insertIndexes, visibleIndexes, pendingCount, pendingData, pendingVisibleIndexes, shouldHideWhenEmpty, editable, movable, onCommitEditingStyle, onMoveRowAtIndexPath, debug, insertAnimation, reloadAnimation, deleteAnimation;
 
 - (id)init {
   self = [super init];
   if (!self) return nil;
   tag = 0;
+  self.userInfo = [NSMutableDictionary dictionary];
   return self;
 }
 
@@ -55,8 +56,14 @@
   
   self.visibleIndexes = nil;
   self.pendingVisibleIndexes = nil;
+  
+  self.userInfo = nil;
 
   [super dealloc];
+}
+
+- (NSString *)description {
+  return [NSString stringWithFormat:@"%@: { tag: %d, title: \"%@\" }", NSStringFromClass([self class]), self.tag, self.title];
 }
 
 - (void)reload {
@@ -96,7 +103,7 @@
     newData = [[dataBlock() copy]autorelease];
   });
   
-  NSAssert(newData, @"dataBlock must return an object. Empty or not.");
+  NSAssert1(newData, @"dataBlock must return an object. Empty or not. (%@)", self);
   
   // Make the diff
   NSIndexSet *reloads = nil;
@@ -131,6 +138,14 @@
   self.insertIndexes = inserts;
   
   NSAssert(oldCount + inserts.count - removes.count == _count, @"oups!");
+  
+#ifdef DEBUG_MCCSmartGroup
+  NSLog(@"Cached: %@: (old count: %d; new count: %d; inserts: %@; removes: %@; reloads: %@)", self, oldCount, _count, inserts, removes, reloads);
+#else
+  if (debug) {
+    NSLog(@"Cached: %@: (old count: %d; new count: %d; inserts: %@; removes: %@; reloads: %@)", self, oldCount, _count, inserts, removes, reloads);
+  }
+#endif
   
   cached = TRUE;
 }
