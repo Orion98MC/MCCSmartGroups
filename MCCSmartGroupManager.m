@@ -118,8 +118,9 @@ NS_INLINE NSArray *indexPathsForSectionWithIndexSet(NSInteger section, NSIndexSe
 
 - (void)updateSmartGroup:(MCCSmartGroup*)smartGroup {
 #ifdef DEBUG_MCCSmartGroupManager
-  NSLog(@"Update smartgroup %@", smartGroup);
+  NSLog(@"%@ %@ : %@", NSStringFromClass([self class]), NSStringFromSelector(_cmd), smartGroup);
 #endif
+
   if (![NSThread isMainThread]) {
     dispatch_async(dispatch_get_main_queue(), ^{
       [smartGroup processUpdates];
@@ -205,23 +206,33 @@ NS_INLINE NSArray *indexPathsForSectionWithIndexSet(NSInteger section, NSIndexSe
       return;
     }
           
-
     NSInteger section = [__self effectiveIndexOfSmartGroup:__smartGroup];
+    
+    if (__smartGroup.debug) { NSLog(@"Will flush updates for smartgroup: %@ at section index: %d", __smartGroup, section); }
+
     [__smartGroup commitUpdates];
     [__tableView beginUpdates];
+    
     if (reloads && reloads.count) {
+      if (__smartGroup.debug) { NSLog(@"Flushing reloads for smartgroup %@", __smartGroup); }
       [__tableView reloadRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, reloads)
                        withRowAnimation:UITableViewRowAnimationNone];
     }
     if (removes && removes.count) {
+      if (__smartGroup.debug) { NSLog(@"Flushing deletes for smartgroup %@", __smartGroup); }
       [__tableView deleteRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, removes)
                        withRowAnimation:UITableViewRowAnimationTop];
     }
     if (inserts && inserts.count) {
+      if (__smartGroup.debug) { NSLog(@"Flushing inserts for smartgroup %@", __smartGroup); }
       [__tableView insertRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, inserts)
                        withRowAnimation:UITableViewRowAnimationNone];
     }
+    
+    if (__smartGroup.debug) { NSLog(@"Commiting updates for smartgroup %@", __smartGroup); }
     [__tableView endUpdates];
+    
+    if (__smartGroup.debug) { NSLog(@"Did flush updates for smartgroup %@", __smartGroup); }
   } copy]autorelease];
 }
 

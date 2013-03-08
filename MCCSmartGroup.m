@@ -143,6 +143,7 @@
   NSLog(@"Cached: %@: (old count: %d; new count: %d; inserts: %@; removes: %@; reloads: %@)", self, oldCount, _count, inserts, removes, reloads);
 #else
   if (debug) {
+    NSLog(@"%@: old data: %@, new data: %@", self, oldData, newData);
     NSLog(@"Cached: %@: (old count: %d; new count: %d; inserts: %@; removes: %@; reloads: %@)", self, oldCount, _count, inserts, removes, reloads);
   }
 #endif
@@ -222,16 +223,22 @@
     
     [remainingSet enumerateObjectsUsingBlock:^(NSNumber *index, BOOL *stop){
       if (![[oldData objectForKey:index] isEqual:[newData objectForKey:index]]) {
-        [toReload addIndex:[index integerValue]];
+        [toReload addIndex:[visibleIndexes indexOfObject:index]]; // FIX for index out of range
       }
     }];
     
     [removedSet enumerateObjectsUsingBlock:^(NSNumber *index, BOOL *stop){
-      [toRemove addIndex:[index integerValue]];
+      [toRemove addIndex:[visibleIndexes indexOfObject:index]];
     }];
     
     [addedSet enumerateObjectsUsingBlock:^(NSNumber *index, BOOL *stop){
-      [toInsert addIndex:[index integerValue]];
+      __block NSInteger i = 0;
+      [visibleIndexes enumerateObjectsUsingBlock:^(id vi, NSUInteger idx, BOOL *stop) {
+        if ([vi integerValue] < [index integerValue]) {
+          i = idx + 1;
+        }
+      }];
+      [toInsert addIndex:i];
     }];
     
     *reloads = [toReload autorelease];
