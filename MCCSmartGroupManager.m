@@ -216,17 +216,17 @@ NS_INLINE NSArray *indexPathsForSectionWithIndexSet(NSInteger section, NSIndexSe
     if (reloads && reloads.count) {
       if (__smartGroup.debug) { NSLog(@"Flushing reloads for smartgroup %@", __smartGroup); }
       [__tableView reloadRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, reloads)
-                       withRowAnimation:UITableViewRowAnimationNone];
+                       withRowAnimation:__smartGroup.reloadAnimation];
     }
     if (removes && removes.count) {
       if (__smartGroup.debug) { NSLog(@"Flushing deletes for smartgroup %@", __smartGroup); }
       [__tableView deleteRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, removes)
-                       withRowAnimation:UITableViewRowAnimationTop];
+                       withRowAnimation:__smartGroup.deleteAnimation];
     }
     if (inserts && inserts.count) {
       if (__smartGroup.debug) { NSLog(@"Flushing inserts for smartgroup %@", __smartGroup); }
       [__tableView insertRowsAtIndexPaths:indexPathsForSectionWithIndexSet(section, inserts)
-                       withRowAnimation:UITableViewRowAnimationNone];
+                       withRowAnimation:__smartGroup.insertAnimation];
     }
     
     if (__smartGroup.debug) { NSLog(@"Commiting updates for smartgroup %@", __smartGroup); }

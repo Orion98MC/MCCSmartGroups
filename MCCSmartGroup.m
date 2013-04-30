@@ -36,6 +36,9 @@
   if (!self) return nil;
   tag = 0;
   self.userInfo = [NSMutableDictionary dictionary];
+  self.insertAnimation = UITableViewRowAnimationNone;
+  self.reloadAnimation = UITableViewRowAnimationFade;
+  self.deleteAnimation = UITableViewRowAnimationNone;
   return self;
 }
 
